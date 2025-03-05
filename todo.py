@@ -73,7 +73,7 @@ class Task(ft.Column):
 
 
 class TodoApp(ft.Column):
-    def __init__(self):
+    def __init__(self, page):
         super().__init__()
         self.new_task = ft.TextField(
             hint_text="What needs to be done?", on_submit=self.add_clicked, expand=True
@@ -118,6 +118,15 @@ class TodoApp(ft.Column):
                             ),
                         ],
                     ),
+                    ft.Row(
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                        controls=[
+                            ft.OutlinedButton(
+                                text="Save Tasks", on_click=self.save_tasks
+                            ),
+                        ],
+                    ),
                 ],
             ),
         ]
@@ -145,6 +154,17 @@ class TodoApp(ft.Column):
             if task.completed:
                 self.task_delete(task)
 
+    def save_tasks(self, e):
+        existing_tasks = self.page.client_storage.get("tasks") or []
+
+        task_dict = {task[0]: task[1] for task in existing_tasks}
+
+        for task in self.tasks.controls:
+            task_dict[task.task_name] = task.completed
+
+        updated_tasks = [[name, completed] for name, completed in task_dict.items()]
+        self.page.client_storage.set("tasks", updated_tasks)
+
     def before_update(self):
         status = self.filter.tabs[self.filter.selected_index].text
         count = 0
@@ -164,7 +184,7 @@ def main(page: ft.Page):
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.scroll = ft.ScrollMode.ADAPTIVE
 
-    page.add(TodoApp())
+    page.add(TodoApp(page))
 
 
 ft.app(main)
