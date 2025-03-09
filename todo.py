@@ -59,10 +59,13 @@ class Task(ft.Column):
         self.update()
 
     def save_clicked(self, e):
-        self.display_task.label = self.edit_name.value
+        self.task_name = self.edit_name.value
+        self.display_task.label = self.task_name
         self.display_view.visible = True
         self.edit_view.visible = False
+        self.task_status_change(self)
         self.update()
+
 
     def status_changed(self, e):
         self.completed = self.display_task.value
