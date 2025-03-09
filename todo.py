@@ -1,5 +1,18 @@
 import flet as ft
+import base64
+import os
+import json
+from cryptography.fernet import Fernet
 
+ENCRYPTION_KEY = os.getenv("TASK_ENCRYPTION_KEY")
+
+cipher = Fernet(ENCRYPTION_KEY.encode())
+
+def encrypt_data(data):
+    return cipher.encrypt(data.encode()).decode()
+
+def decrypt_data(data):
+    return cipher.decrypt(data.encode()).decode()
 
 class Task(ft.Column):
     def __init__(self, task_name, task_status_change, task_delete):
@@ -166,7 +179,7 @@ class TodoApp(ft.Column):
         
     def save_tasks(self, e):
         existing_tasks = self.page.client_storage.get("tasks") or []
-        task_dict = {task[0]: task[1] for task in existing_tasks}
+        task_dict = json.loads(existing_tasks)
 
         current_task_names = {task.task_name for task in self.tasks.controls}
         
@@ -175,16 +188,21 @@ class TodoApp(ft.Column):
         for task in self.tasks.controls:
             task_dict[task.task_name] = task.completed
 
-        updated_tasks = [[name, completed] for name, completed in task_dict.items()]
-        self.page.client_storage.set("tasks", updated_tasks)
+        print(task_dict)
+
+        task_json = json.dumps(task_dict)
+        self.page.client_storage.set("tasks", task_json)
 
     def load_tasks(self):
-        existing_tasks = self.page.client_storage.get("tasks") or []
-        
-        for existing_task in existing_tasks:
-            task = Task(existing_task[0], self.task_status_change, self.task_delete)
-            task.completed = existing_task[1]
-            task.display_task.value = existing_task[1]
+        existing_tasks = json.loads(self.page.client_storage.get("tasks")) or []
+
+        print(existing_tasks)
+
+        for key, value in existing_tasks.items():
+            print(key + " " + str(value))
+            task = Task(key, self.task_status_change, self.task_delete)
+            task.completed = value
+            task.display_task.value = value
 
             self.tasks.controls.append(task)
         
