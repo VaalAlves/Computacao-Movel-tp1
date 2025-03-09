@@ -66,7 +66,6 @@ class Task(ft.Column):
         self.task_status_change(self)
         self.update()
 
-
     def status_changed(self, e):
         self.completed = self.display_task.value
         self.task_status_change(self)
