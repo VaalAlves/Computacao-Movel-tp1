@@ -156,14 +156,19 @@ class TodoApp(ft.Column):
 
     def save_tasks(self, e):
         existing_tasks = self.page.client_storage.get("tasks") or []
-
         task_dict = {task[0]: task[1] for task in existing_tasks}
+
+        current_task_names = {task.task_name for task in self.tasks.controls}
+        
+        task_dict = {name: completed for name, completed in task_dict.items() if name in current_task_names}
 
         for task in self.tasks.controls:
             task_dict[task.task_name] = task.completed
 
         updated_tasks = [[name, completed] for name, completed in task_dict.items()]
         self.page.client_storage.set("tasks", updated_tasks)
+
+        print(updated_tasks)
 
     def before_update(self):
         status = self.filter.tabs[self.filter.selected_index].text
