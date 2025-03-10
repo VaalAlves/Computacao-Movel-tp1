@@ -1,8 +1,10 @@
 import flet as ft
-import base64
 import os
 import json
+from dotenv import load_dotenv
 from cryptography.fernet import Fernet
+
+load_dotenv()
 
 ENCRYPTION_KEY = os.getenv("TASK_ENCRYPTION_KEY")
 
@@ -178,35 +180,43 @@ class TodoApp(ft.Column):
         self.items_left.value = f"{count} active item(s) left"
         
     def save_tasks(self, e):
-        existing_tasks = self.page.client_storage.get("tasks") or []
-        task_dict = json.loads(existing_tasks)
-
+        existing_tasks = self.get_decrypted_tasks()
+        
+        task_dict = {}
+        
         current_task_names = {task.task_name for task in self.tasks.controls}
         
-        task_dict = {name: completed for name, completed in task_dict.items() if name in current_task_names}
+        task_dict = {name: completed for name, completed in existing_tasks.items() if name in current_task_names}
 
         for task in self.tasks.controls:
             task_dict[task.task_name] = task.completed
 
-        print(task_dict)
-
         task_json = json.dumps(task_dict)
-        self.page.client_storage.set("tasks", task_json)
+        encrypted_json = encrypt_data(task_json)
+
+        self.page.client_storage.set("tasks", encrypted_json)
+
+    def get_decrypted_tasks(self):
+        existing_tasks = {}
+        if self.page.client_storage.get("tasks"):
+            encrypted_data = self.page.client_storage.get("tasks")
+            decrypted_data = decrypt_data(encrypted_data)
+            existing_tasks = json.loads(decrypted_data)
+            return existing_tasks
 
     def load_tasks(self):
-        existing_tasks = json.loads(self.page.client_storage.get("tasks")) or []
-
-        print(existing_tasks)
+        existing_tasks = self.get_decrypted_tasks()
 
         for key, value in existing_tasks.items():
-            print(key + " " + str(value))
+            print(f"{key}: {value}")
             task = Task(key, self.task_status_change, self.task_delete)
             task.completed = value
             task.display_task.value = value
 
             self.tasks.controls.append(task)
-        
+
         self.update()
+
 
 def main(page: ft.Page):
     page.title = "ToDo App"
