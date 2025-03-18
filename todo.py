@@ -206,14 +206,14 @@ class TodoApp(ft.Column):
 
     def load_tasks(self):
         existing_tasks = self.get_decrypted_tasks()
+        if existing_tasks:
+            for key, value in existing_tasks.items():
+                print(f"{key}: {value}")
+                task = Task(key, self.task_status_change, self.task_delete)
+                task.completed = value
+                task.display_task.value = value
 
-        for key, value in existing_tasks.items():
-            print(f"{key}: {value}")
-            task = Task(key, self.task_status_change, self.task_delete)
-            task.completed = value
-            task.display_task.value = value
-
-            self.tasks.controls.append(task)
+                self.tasks.controls.append(task)
 
         self.update()
 
