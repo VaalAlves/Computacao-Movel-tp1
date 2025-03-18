@@ -1,13 +1,13 @@
-import flet as ft
 import os
 import json
+import flet as ft
 from dotenv import load_dotenv
 from cryptography.fernet import Fernet
+from flet.auth.providers import GitHubOAuthProvider
 
 load_dotenv()
 
 ENCRYPTION_KEY = os.getenv("TASK_ENCRYPTION_KEY")
-
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
 def encrypt_data(data):
@@ -88,7 +88,6 @@ class Task(ft.Column):
     def delete_clicked(self, e):
         self.task_delete(self)
 
-
 class TodoApp(ft.Column):
     def __init__(self, page):
         super().__init__()
@@ -97,17 +96,13 @@ class TodoApp(ft.Column):
             hint_text="What needs to be done?", on_submit=self.add_clicked, expand=True
         )
         self.tasks = ft.Column()
-
         self.filter = ft.Tabs(
             scrollable=False,
             selected_index=0,
             on_change=self.tabs_changed,
             tabs=[ft.Tab(text="all"), ft.Tab(text="active"), ft.Tab(text="completed")],
         )
-
         self.items_left = ft.Text("0 items left")
-
-        self.width = 600
         self.controls = [
             ft.Row(
                 [ft.Text(value="Todos", theme_style=ft.TextThemeStyle.HEADLINE_MEDIUM)],
@@ -146,16 +141,16 @@ class TodoApp(ft.Column):
             self.tasks.controls.append(task)
             self.new_task.value = ""
             self.new_task.focus()
-            self.save_tasks(self)
+            self.save_tasks()
             self.update()
 
     def task_status_change(self, task):
-        self.save_tasks(self)
+        self.save_tasks()
         self.update()
 
     def task_delete(self, task):
         self.tasks.controls.remove(task)
-        self.save_tasks(self)
+        self.save_tasks()
         self.update()
 
     def tabs_changed(self, e):
@@ -166,34 +161,10 @@ class TodoApp(ft.Column):
             if task.completed:
                 self.task_delete(task)
 
-    def before_update(self):
-        status = self.filter.tabs[self.filter.selected_index].text
-        count = 0
-        for task in self.tasks.controls:
-            task.visible = (
-                status == "all"
-                or (status == "active" and task.completed == False)
-                or (status == "completed" and task.completed)
-            )
-            if not task.completed:
-                count += 1
-        self.items_left.value = f"{count} active item(s) left"
-        
-    def save_tasks(self, e):
+    def save_tasks(self):
         existing_tasks = self.get_decrypted_tasks()
-        
-        task_dict = {}
-        
-        current_task_names = {task.task_name for task in self.tasks.controls}
-        
-        task_dict = {name: completed for name, completed in existing_tasks.items() if name in current_task_names}
-
-        for task in self.tasks.controls:
-            task_dict[task.task_name] = task.completed
-
-        task_json = json.dumps(task_dict)
-        encrypted_json = encrypt_data(task_json)
-
+        task_dict = {task.task_name: task.completed for task in self.tasks.controls}
+        encrypted_json = encrypt_data(json.dumps(task_dict))
         self.page.client_storage.set("tasks", encrypted_json)
 
     def get_decrypted_tasks(self):
@@ -202,29 +173,40 @@ class TodoApp(ft.Column):
             encrypted_data = self.page.client_storage.get("tasks")
             decrypted_data = decrypt_data(encrypted_data)
             existing_tasks = json.loads(decrypted_data)
-            return existing_tasks
+        return existing_tasks
 
     def load_tasks(self):
         existing_tasks = self.get_decrypted_tasks()
-
-        for key, value in existing_tasks.items():
-            print(f"{key}: {value}")
-            task = Task(key, self.task_status_change, self.task_delete)
-            task.completed = value
-            task.display_task.value = value
-
-            self.tasks.controls.append(task)
-
+        if existing_tasks:
+            for key, value in existing_tasks.items():
+                task = Task(key, self.task_status_change, self.task_delete)
+                task.completed = value
+                task.display_task.value = value
+                self.tasks.controls.append(task)
         self.update()
-
 
 def main(page: ft.Page):
     page.title = "ToDo App"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.scroll = ft.ScrollMode.ADAPTIVE
 
+    provider = GitHubOAuthProvider(
+        client_id=os.getenv("GITHUB_CLIENT_ID"),
+        client_secret=os.getenv("GITHUB_CLIENT_SECRET"),
+        redirect_url="http://localhost:8550/oauth_callback",
+    )
+
+    def login_button_click(e):
+        page.login(provider, scope=["public_repo"])
+
+    def logout_button_click(e):
+        page.logout()
+
+    login_button = ft.ElevatedButton("Login with GitHub", on_click=login_button_click)
+    logout_button = ft.ElevatedButton("Logout", on_click=logout_button_click)
     todo_app = TodoApp(page)
-    page.add(todo_app)
+
+    page.add(login_button, logout_button, todo_app)
     todo_app.load_tasks()
 
-ft.app(main)
+ft.app(main, port=8550, view=ft.WEB_BROWSER)
