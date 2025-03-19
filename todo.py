@@ -160,6 +160,18 @@ class TodoApp(ft.Column):
         for task in self.tasks.controls[:]:
             if task.completed:
                 self.task_delete(task)
+    def before_update(self):
+        status = self.filter.tabs[self.filter.selected_index].text
+        count = 0
+        for task in self.tasks.controls:
+            task.visible = (
+                status == "all"
+                or (status == "active" and task.completed == False)
+                or (status == "completed" and task.completed)
+            )
+            if not task.completed:
+                count += 1
+        self.items_left.value = f"{count} active item(s) left"
 
     def save_tasks(self):
         existing_tasks = self.get_decrypted_tasks()
